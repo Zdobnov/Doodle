@@ -1,12 +1,11 @@
 import './App.css';
+import { MainLayout } from './layouts';
+import { HomePage } from './pages';
 
-const App = () => {
-
-  return (
-    <main>
-      123
-    </main>
-  )
-};
+const App = () => (
+  <MainLayout>
+    <HomePage />
+  </MainLayout>
+);
 
 export default App;
