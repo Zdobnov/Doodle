@@ -16,9 +16,11 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     <article className={className}>
       {!isOwnMessage && <p className="message-bubble__author">{message.author}</p>}
       <p className="message-bubble__text">{message.message}</p>
-      <time className="message-bubble__time" dateTime={getMessageDate(message)}>
-        {formatMessageDate(getMessageDate(message))}
-      </time>
+      {message.createdAt && (
+        <time className="message-bubble__time" dateTime={getMessageDate(message)}>
+          {formatMessageDate(getMessageDate(message))}
+        </time>
+      )}
     </article>
   );
 };

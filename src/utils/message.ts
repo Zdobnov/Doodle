@@ -13,11 +13,20 @@ export function getMessageDate(message: Message): string {
   return message.createdAt;
 }
 
+export function getMessageCursor(message: Message): string | undefined {
+  return message.cursorCreatedAt;
+}
+
+export function getLatestMessageCursor(messages: Message[]): string | undefined {
+  return [...messages].reverse().find((message) => message.cursorCreatedAt)
+    ?.cursorCreatedAt;
+}
+
 export function sortMessagesAscending(messages: Message[]): Message[] {
   return [...messages].sort(
     (first, second) =>
-      new Date(getMessageDate(first)).getTime() -
-      new Date(getMessageDate(second)).getTime(),
+      (Date.parse(getMessageDate(first)) || 0) -
+      (Date.parse(getMessageDate(second)) || 0),
   );
 }
 
@@ -26,12 +35,12 @@ export function formatMessageDate(value: string): string {
 }
 
 export function normalizeMessage(rawMessage: ApiMessage, index = 0): Message {
-  const createdAt =
+  const cursorCreatedAt =
     rawMessage.createdAt ??
     rawMessage.created_at ??
     rawMessage.timestamp ??
-    rawMessage.date ??
-    new Date().toISOString();
+    rawMessage.date;
+  const createdAt = cursorCreatedAt ?? '';
   const message = rawMessage.message ?? '';
   const author = rawMessage.author ?? 'Unknown';
   const id = rawMessage.id ?? `${author}-${createdAt}-${message}-${index}`;
@@ -41,6 +50,7 @@ export function normalizeMessage(rawMessage: ApiMessage, index = 0): Message {
     author,
     message,
     createdAt,
+    cursorCreatedAt,
   };
 }
 

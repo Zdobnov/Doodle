@@ -23,22 +23,24 @@ export const ChatComposer = ({ disabled = false, onSend }: ChatComposerProps) =>
 
   return (
     <form className="chat-composer" onSubmit={handleSubmit} aria-label="Send message">
-      <label className="sr-only" htmlFor="chat-message">
-        Message
-      </label>
-      <input
-        id="chat-message"
-        className="chat-composer__input"
-        name="message"
-        placeholder="Message"
-        value={message}
-        disabled={disabled}
-        autoComplete="off"
-        onChange={(event) => setMessage(event.target.value)}
-      />
-      <button className="chat-composer__button" type="submit" disabled={disabled}>
-        Send
-      </button>
+      <div className="chat-composer__inner">
+        <label className="sr-only" htmlFor="chat-message">
+          Message
+        </label>
+        <input
+          id="chat-message"
+          className="chat-composer__input"
+          name="message"
+          placeholder="Message"
+          value={message}
+          disabled={disabled}
+          autoComplete="off"
+          onChange={(event) => setMessage(event.target.value)}
+        />
+        <button className="chat-composer__button" type="submit" disabled={disabled}>
+          Send
+        </button>
+      </div>
     </form>
   );
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CURRENT_AUTHOR,
   MESSAGE_PAGE_SIZE,
@@ -9,7 +9,10 @@ import {
   fetchChatMessages,
 } from '../services/chatService';
 import type { Message } from '../types/message';
-import { getMessageDate, mergeMessages } from '../utils/message';
+import {
+  getLatestMessageCursor,
+  mergeMessages,
+} from '../utils/message';
 
 type ChatStatus = 'idle' | 'loading' | 'ready' | 'submitting' | 'error';
 
@@ -20,10 +23,24 @@ type UseChatMessagesResult = {
   submitMessage: (message: string) => Promise<void>;
 };
 
+function getLaterTimestamp(first?: string, second?: string): string | undefined {
+  if (!first) {
+    return second;
+  }
+
+  if (!second) {
+    return first;
+  }
+
+  return Date.parse(first) > Date.parse(second) ? first : second;
+}
+
 export function useChatMessages(): UseChatMessagesResult {
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<ChatStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const isRefreshingRef = useRef(false);
+  const pollCursorRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let isActive = true;
@@ -42,6 +59,8 @@ export function useChatMessages(): UseChatMessagesResult {
         }
 
         setMessages(remoteMessages);
+        pollCursorRef.current =
+          getLatestMessageCursor(remoteMessages) ?? new Date().toISOString();
         setError(null);
         setStatus('ready');
       } catch (cause) {
@@ -63,30 +82,42 @@ export function useChatMessages(): UseChatMessagesResult {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setMessages((currentMessages) => {
-        const latestMessage = currentMessages.at(-1);
-        const after = latestMessage ? getMessageDate(latestMessage) : undefined;
+      if (isRefreshingRef.current) {
+        return;
+      }
 
-        void fetchChatMessages(after, MESSAGE_PAGE_SIZE)
-          .then((newMessages) => {
+      isRefreshingRef.current = true;
+
+      const refreshStartedAt = new Date().toISOString();
+
+      void fetchChatMessages(pollCursorRef.current, MESSAGE_PAGE_SIZE)
+        .then((newMessages) => {
+          pollCursorRef.current = getLaterTimestamp(
+            getLatestMessageCursor(newMessages),
+            refreshStartedAt,
+          );
+
+          if (newMessages.length > 0) {
             setMessages((latestMessages) =>
               mergeMessages(latestMessages, newMessages),
             );
-            setError(null);
-            setStatus((currentStatus) =>
-              currentStatus === 'submitting' ? currentStatus : 'ready',
-            );
-          })
-          .catch((cause) => {
-            setError(
-              cause instanceof Error
-                ? cause.message
-                : 'Unable to refresh messages',
-            );
-          });
+          }
 
-        return currentMessages;
-      });
+          setError(null);
+          setStatus((currentStatus) =>
+            currentStatus === 'submitting' ? currentStatus : 'ready',
+          );
+        })
+        .catch((cause) => {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Unable to refresh messages',
+          );
+        })
+        .finally(() => {
+          isRefreshingRef.current = false;
+        });
     }, MESSAGE_REFRESH_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
@@ -104,6 +135,7 @@ export function useChatMessages(): UseChatMessagesResult {
       author: CURRENT_AUTHOR,
       message: trimmedMessage,
       createdAt: new Date().toISOString(),
+      isPending: true,
     };
 
     setMessages((currentMessages) =>
@@ -115,6 +147,11 @@ export function useChatMessages(): UseChatMessagesResult {
       const createdMessage = await createChatMessage(
         CURRENT_AUTHOR,
         trimmedMessage,
+      );
+
+      pollCursorRef.current = getLaterTimestamp(
+        pollCursorRef.current,
+        createdMessage.cursorCreatedAt,
       );
 
       setMessages((currentMessages) =>

@@ -4,6 +4,8 @@ export type Message = {
   author: string;
   message: string;
   createdAt: string;
+  cursorCreatedAt?: string;
+  isPending?: boolean;
 };
 
 export type ApiMessage = {

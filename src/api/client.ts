@@ -42,15 +42,19 @@ function buildUrl(
     return url;
   }
 
-  const searchParams = new URLSearchParams();
+  const query = Object.entries(params)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => {
+      const encodedKey = encodeURIComponent(key);
+      const encodedValue = encodeURIComponent(String(value)).replaceAll(
+        '%3A',
+        ':',
+      );
 
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined) {
-      searchParams.append(key, String(value));
-    }
-  }
+      return `${encodedKey}=${encodedValue}`;
+    })
+    .join('&');
 
-  const query = searchParams.toString();
   return query ? `${url}?${query}` : url;
 }
 
@@ -118,6 +122,10 @@ export async function request<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (cause) {
+    if (cause instanceof Error && cause.name === 'AbortError') {
+      throw cause;
+    }
+
     const message =
       cause instanceof Error ? cause.message : 'Network request failed';
     throw new ApiError(message, 0, cause);
